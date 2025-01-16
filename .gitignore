@@ -1,0 +1,9 @@
+tmp
+
+# Output of `go build` and `go run`
+/bin/
+/build/
+/dist/
+/out/
+
+.env
