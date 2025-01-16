@@ -12,19 +12,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func createUser(ctx context.Context, user models.User, w http.ResponseWriter) error {
+func createUser(ctx context.Context, user models.User) (models.User, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
-		utils.JSONResponse(w, http.StatusInternalServerError, map[string]string{"message": "Something went wrong while hashing the password"})
-		return err
+		return models.User{}, err
 	}
-	query := `INSERT INTO users (name, email, password, country) VALUES ($1, $2, $3, $4)`
-	_, err = db.DB.Exec(ctx, query, user.Name, user.Email, hashedPassword, user.Country)
+	query := `INSERT INTO users (name, email, password, country) VALUES ($1, $2, $3, $4) RETURNING id, role`
+	var newUser models.User
+	err = db.DB.QueryRow(ctx, query, user.Name, user.Email, hashedPassword, user.Country).Scan(
+		&newUser.ID, &newUser.Role,
+	)
 	if err != nil {
-		utils.JSONResponse(w, http.StatusInternalServerError, map[string]string{"message": "Internal server error"})
-		return err
+		return models.User{}, err
 	}
-	return nil
+	return newUser, nil
 }
 
 func SignUp(w http.ResponseWriter, r *http.Request) {
@@ -51,16 +52,17 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 		utils.JSONResponse(w, http.StatusBadRequest, map[string]string{"message": "All fields are required"})
 		return
 	}
-	err = createUser(ctx, user, w)
+	newUser, err := createUser(ctx, user)
 	if err != nil {
 		utils.JSONResponse(w, http.StatusInternalServerError, map[string]string{"message": err.Error()})
+		return
 	}
 	emailService, err := services.NewEmailService()
 	if err != nil {
 		utils.JSONResponse(w, http.StatusInternalServerError, map[string]string{"message": "Error creating email service"})
 		return
 	}
-	err = emailService.SendEmail(user.Email, "Welcome to MyBlog", "Thank you for signing up with MyBlog")
+	err = emailService.SendEmail(newUser.ID, newUser.Role, user.Email, "Welcome to MyBlog", "Thank you for signing up with MyBlog")
 	if err != nil {
 		utils.JSONResponse(w, http.StatusInternalServerError, map[string]string{"message": "Error sending email"})
 		return

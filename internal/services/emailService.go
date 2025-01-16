@@ -3,6 +3,8 @@ package services
 import (
 	"context"
 	"fmt"
+	"myblogapi/pkg/templates"
+	"myblogapi/pkg/utils"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -47,7 +49,13 @@ func NewEmailService() (*EmailService, error) {
 
 }
 
-func (es *EmailService) SendEmail(toEmail, subject, message string) error {
+func (es *EmailService) SendEmail(id int, role, toEmail, subject, message string) error {
+	signedToken, err := utils.GenerateJWT(fmt.Sprint(id), &role)
+	if err != nil {
+		fmt.Println("error generating jwt:", err)
+		return err
+	}
+	clientUrl := os.Getenv("CLIENT_URL")
 	input := &sesv2.SendEmailInput{
 		Destination: &types.Destination{
 			ToAddresses: []string{toEmail},
@@ -55,9 +63,9 @@ func (es *EmailService) SendEmail(toEmail, subject, message string) error {
 		Content: &types.EmailContent{
 			Simple: &types.Message{
 				Body: &types.Body{
-					Text: &types.Content{
+					Html: &types.Content{
 						Charset: aws.String("UTF-8"),
-						Data:    aws.String("Email Body Content Here"),
+						Data:    aws.String(templates.VerifyEmailTemplate(clientUrl, signedToken)),
 					},
 				},
 				Subject: &types.Content{
@@ -68,7 +76,7 @@ func (es *EmailService) SendEmail(toEmail, subject, message string) error {
 		},
 		FromEmailAddress: aws.String(es.sender),
 	}
-	_, err := es.client.SendEmail(context.TODO(), input)
+	_, err = es.client.SendEmail(context.TODO(), input)
 	if err != nil {
 		fmt.Println("error sending email:", err)
 		return err
