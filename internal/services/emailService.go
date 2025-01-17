@@ -78,7 +78,6 @@ func (es *EmailService) SendEmail(id int, role, toEmail, subject, message string
 	}
 	_, err = es.client.SendEmail(context.TODO(), input)
 	if err != nil {
-		fmt.Println("error sending email:", err)
 		return err
 	}
 	return nil

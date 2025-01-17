@@ -12,8 +12,8 @@ import (
 func GetUserByEmail(ctx context.Context, email string) (models.User, error) {
 	var user models.User
 
-	err := db.DB.QueryRow(ctx, "SELECT email FROM users WHERE email = $1", email).Scan(&user.Email)
-	fmt.Println("hey error", err)
+	err := db.DB.QueryRow(ctx, "SELECT id, email, password, verified, role FROM users WHERE email = $1", email).Scan(&user.ID, &user.Email, &user.Password, &user.Verified, &user.Role)
+
 	if err != nil {
 		fmt.Println("error is here", err.Error())
 		if err == pgx.ErrNoRows {

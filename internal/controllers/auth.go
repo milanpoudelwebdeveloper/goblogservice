@@ -70,3 +70,40 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 	utils.JSONResponse(w, http.StatusCreated, map[string]string{"message": "User created successfully"})
 
 }
+
+func LoginUser(w http.ResponseWriter, r *http.Request) {
+	var user models.User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+		return
+	}
+	ctx := r.Context()
+	existingUser, err := GetUserByEmail(ctx, user.Email)
+	if err != nil {
+		utils.JSONResponse(w, http.StatusInternalServerError, map[string]string{"message": "Internal server error"})
+		return
+	}
+	if existingUser.Email == "" {
+		utils.JSONResponse(w, http.StatusBadRequest, map[string]string{"message": "User with that email does not exist"})
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(existingUser.Password), []byte(user.Password))
+	if err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, map[string]string{"message": "Sorry, the password is incorrect"})
+		return
+	}
+	if !existingUser.Verified {
+		utils.JSONResponse(w, http.StatusBadRequest, map[string]string{"message": "Account not verified. Please check your previous email for the verification link"})
+		return
+	}
+	token, err := utils.GenerateJWT(existingUser.Email, &existingUser.Role)
+
+	if err != nil {
+		utils.JSONResponse(w, http.StatusInternalServerError, map[string]string{"message": "Error generating token"})
+		return
+	}
+	utils.JSONResponse(w, http.StatusOK, map[string]string{"token": token})
+
+}

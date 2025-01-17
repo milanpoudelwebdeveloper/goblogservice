@@ -8,4 +8,5 @@ import (
 
 func AuthRoutes(r chi.Router) {
 	r.Post("/signup", controllers.SignUp)
+	r.Post("/login", controllers.LoginUser)
 }
